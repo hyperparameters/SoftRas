@@ -145,9 +145,20 @@ class Model(nn.Module):
         voxels_predict = voxels_predict.transpose(0, 2, 1, 3)[:, :, :, ::-1]
         iou = (voxels * voxels_predict).sum((1, 2, 3)) / (0 < (voxels + voxels_predict)).sum((1, 2, 3))
         return iou, vertices, faces
+    def demo(self, images):
+        vertices, faces = self.reconstruct(images)
+
+        faces_ = srf.face_vertices(vertices, faces).data
+        faces_norm = faces_ * 1. * (32. - 1) / 32. + 0.5
+        voxels_predict = srf.voxelization(faces_norm, 32, False).cpu().numpy()
+        voxels_predict = voxels_predict.transpose(0, 2, 1, 3)[:, :, :, ::-1]
+        return voxels_predict, vertices, faces
+
 
     def forward(self, images=None, viewpoints=None, voxels=None, task='train'):
         if task == 'train':
             return self.render_multiview(images[0], images[1], viewpoints[0], viewpoints[1])
         elif task == 'test':
             return self.evaluate_iou(images, voxels)
+        elif task == "demo":
+            return self.demo(images)
